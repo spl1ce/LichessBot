@@ -14,12 +14,18 @@ icon_url = "https://cdn.discordapp.com/avatars/1076521458827804763/f371a0356a7f0
 invite_url = "https://discord.com/api/oauth2/authorize?client_id=1076521458827804763&permissions=8&scope=bot"
 
 
+# Emojis
+
+lichess_crown = "<:crown_lichess:1079129114168004678>"
+
 # Request URLs
 
 user_public_data = "https://lichess.org/api/user/"
 
 
 # Embeds
+
+
 
 InfoEmbed = discord.Embed(title = "Info", description = """
         Hey, I'm the LichessBot.
@@ -32,7 +38,10 @@ InfoEmbed.set_author(name="LichessBot", icon_url=icon_url)
 InfoEmbed.add_field(name="Invite", value=f"[Link]({invite_url})")
 
 
+
 InviteEmbed = discord.Embed(description=f"[Click here!]({invite_url})",color=white_color)
 
+
+LimitErrorEmbed = discord.Embed(description='```ansi\n\u001b[1;31mPlease specify a valid time range: 1m, 3m, 6m, 1y, ytd or all```', color=discord.Colour.red())
 
 

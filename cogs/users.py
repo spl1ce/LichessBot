@@ -1,6 +1,12 @@
 import discord
 from discord.ext import commands
 
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import numpy as np
+import pandas as pd
+
+import typing
 import flag
 import pycountry
 import requests
@@ -19,6 +25,8 @@ class Users(commands.Cog):
     async def userinfo(self, ctx, *, username: str):
         r = requests.get(url=constants.user_public_data+username)
         user_data = json.loads(r.text)
+
+        print(user_data)
 
 
 ## Creating the embed object
@@ -367,7 +375,8 @@ class Users(commands.Cog):
         if 'patron' in user_data:
             if user_data['patron']:
 
-                embed.title = '<:crown_lichess:1079129114168004678> ' + embed.title
+                embed.title = constants.lichess_crown + " " + embed.title
+
         else:
             pass
 
@@ -387,7 +396,177 @@ class Users(commands.Cog):
 
         await ctx.reply(embed=embed)
 
+    @commands.hybrid_command()
+    async def status(self, ctx, *, usernames: str):
+        
+        r = requests.get(url="https://lichess.org/api/users/status", params={'ids': usernames.replace(" ",",")})
+        user_data = json.loads(r.text)[0]
+        print(user_data)
 
-    
+        
+
+        embed = discord.Embed(title=f"{user_data['title'] if 'title' in user_data else ''} {user_data['username']}",
+                              description="test",
+                              colour=colour,
+                              timestamp=datetime.datetime.utcnow()
+                              )
+        
+        embed.set_footer(text=f"Requested by {ctx.author.name}#{ctx.author.discriminator}", icon_url=ctx.author.avatar.url)
+        
+        # Check if user is: online, Lichess patron, streaming and playing
+
+        if 'online' in user_data:
+            if user_data['online']:
+                colour = discord.Colour.green
+                online = True
+
+            else:
+                colour = discord.Colour.light_grey
+                online = False
+
+        if 'patron' in user_data:
+            if user_data['patron']:
+
+                embed.title = constants.lichess_crown + " " + embed.title
+        else:
+            pass
+
+        if 'streaming' in user_data:
+            streaming = user_data['streaming']
+
+
+        if 'playing' in user_data:
+            if user_data['playing']:
+                playing = "Is Playing"
+
+
+        # Finishing the embed
+
+        value="""```
+
+        ```"""
+
+        embed.add_field(name='Status', value=value)
+        await ctx.reply(embed=embed)
+
+
+    @commands.hybrid_command(aliases=['rh'])
+    async def rating_history(self, ctx, username: str, lim = '3m'):
+
+        # Getting the graph range
+
+        limits = {
+            '1m':30,
+            '3m':3*30,
+            '6m':6*30,
+            '1y':12*30,
+        }
+
+        try:
+            days = limits[lim]
+            xmin = (datetime.datetime.today() - datetime.timedelta(days=days))
+
+        except KeyError:
+            if lim.lower() == 'all':
+                xmin = None
+            elif lim.lower() == 'ytd':
+                xmin = datetime.datetime(year=datetime.datetime.today().year,month=1,day=1)
+            else:
+                embed = constants.LimitErrorEmbed
+                await ctx.reply(embed=embed)
+                return
+
+
+        # Retrieving the data from Lichess
+        r = requests.get(url=f"https://lichess.org/api/user/{username}/rating-history")
+        data = r.content
+        user_data = json.loads(r.text)
+        
+        # Just writing it to a file for testing purposes
+        
+        with open('data.json', 'wb') as f:
+            f.write(data)
+        points = user_data[0]['points']
+
+        # Arranging the data 
+
+        dates = []
+        ratings = []
+
+        for entry in points:
+            date = datetime.datetime(year=entry[0], month=entry[1]+1, day=entry[2])
+            dates.append(date)
+
+        ratings = [entry[3] for entry in points]
+
+        
+
+        # Make lines go straight when there is not data
+
+        for date in dates:
+            index = dates.index(date) 
+            day_before = date - datetime.timedelta(days=1)
+            if day_before not in dates and index !=0:
+                dates.insert(index, day_before)
+                ratings.insert(index, ratings[index-1])
+
+        # Creating the graph and costumizing it
+
+        fig = plt.figure()
+        ax = fig.add_subplot()
+
+        grey_color = '#646873'
+
+        fig.set_facecolor('#2f3136')
+        ax.set_facecolor('#2f3136')
+        ax.spines['bottom'].set_color(grey_color)
+        ax.spines['right'].set_color(grey_color)
+        ax.tick_params(axis='x', colors=grey_color)
+        ax.tick_params(axis='y', colors=grey_color,direction='out',pad=-1)
+        ax.yaxis.tick_right()
+        ax.spines[['left','top','right']].set_visible(False)
+        ax.grid(color=grey_color,axis='y')
+        fig.set_figwidth(10)
+
+        formatter = mdates.AutoDateFormatter(mdates.AutoDateLocator())
+        formatter.scaled[365] = "%h, %y"
+        formatter.scaled[30] = "%d, %h, %Y"
+        formatter.scaled[1] = "%d %h, %y"
+
+        ax.xaxis.set_major_formatter(formatter)
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+        
+        # Find ymax and ymin for the graph
+
+        plt.plot(dates, ratings)
+
+        if xmin != None:
+                
+            for i in range(len(dates)):
+                if dates[i] >= xmin:
+                    xmin_i = i-1 if i!= 0 else i
+                    break
+
+            plt.xlim(xmin, dates[len(dates)-1])
+            
+        else:
+            ymin, ymax = ax.get_ylim()
+            plt.ylim(ymin-100,ymax+100)
+
+        ax.set_yticklabels(ax.get_yticklabels(), ha="right", va="bottom")
+
+        plt.savefig('utils/media/image.png',bbox_inches='tight')
+        file = discord.File('utils/media/image.png', filename="image.png")
+
+        ## Creating the embed
+
+        embed = discord.Embed(
+            color=constants.white_color,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.set_image(url="attachment://image.png")
+        await ctx.reply(file=file, embed=embed)
+
+
 async def setup(bot):
     await bot.add_cog(Users(bot))
