@@ -16,6 +16,140 @@ import datetime
 from utils import constants
 
 
+def graph(data, xmin):
+
+
+    fig = plt.figure()
+    ax = fig.add_subplot()
+
+    grey_color = '#646873'
+
+    fig.set_facecolor('#2f3136')
+    ax.set_facecolor('#2f3136')
+    ax.spines['bottom'].set_color(grey_color)
+    ax.spines['right'].set_color(grey_color)
+    ax.tick_params(axis='x', colors=grey_color)
+    ax.tick_params(axis='y', colors=grey_color,direction='out',pad=-1)
+    ax.yaxis.tick_right()
+    ax.spines[['left','top','right']].set_visible(False)
+    ax.grid(color=grey_color,axis='y')
+    fig.set_figwidth(10)
+
+    formatter = mdates.AutoDateFormatter(mdates.AutoDateLocator())
+    formatter.scaled[365] = "%h, %y"
+    formatter.scaled[30] = "%h, %Y"
+    formatter.scaled[1] = "%d %h, %y"
+
+    ax.xaxis.set_major_formatter(formatter)
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+
+    for variant in data:
+        
+
+        points = variant['points']
+        name = variant['name']
+
+        
+        # Arranging the data 
+
+        dates = []
+        ratings = []
+
+        for entry in points:
+            date = datetime.datetime(year=entry[0], month=entry[1]+1, day=entry[2])
+            dates.append(date)
+
+        ratings = [entry[3] for entry in points]
+        
+
+        # Make lines go straight when there is not data
+
+        for date in dates:
+            index = dates.index(date) 
+            day_before = date - datetime.timedelta(days=1)
+            if day_before not in dates and index !=0:
+                dates.insert(index, day_before)
+                ratings.insert(index, ratings[index-1])
+
+        # Creating the graph and costumizing it
+
+        plt.plot(dates, ratings, color = constants.graph_variants[name]['colour'], dashes=(4,4) if constants.graph_variants[name]['dash'] else (None, None))
+
+
+    ## FINISHING THE GRAPH
+
+
+    # Find ymax and ymin for the graph
+
+
+    if xmin != None:
+            
+        for i in range(len(dates)):
+            if dates[i] >= xmin:
+                xmin_i = i-1 if i!= 0 else i
+                break
+        
+        
+        plt.xlim(xmin, datetime.datetime.today())
+        ymin, ymax = ax.get_ylim()
+        if len(points) == 1:
+            ymax = max(ratings[xmin_i:])
+        plt.ylim(ymin-100,ymax+100)
+
+        
+    else:
+        ymin, ymax = ax.get_ylim()
+        plt.ylim(ymin-100,ymax+100)
+
+    ax.set_yticklabels(ax.get_yticklabels(), ha="right", va="bottom")
+
+    labels = []
+    for label in ax.get_xticklabels():
+        label = label.get_text().title()
+        labels.append(label)
+
+    ax.set_xticklabels(labels)
+
+
+
+    return plt.savefig('utils/media/image.png',bbox_inches='tight')
+
+
+class RHDropdown(discord.ui.Select):
+    def __init__(self, data, xmin):
+        self.data = data
+        self.xmin = xmin
+
+        options = [
+            discord.SelectOption(label='All variants', description='Display all variants.', value='All', emoji='<:rainbowcircle:1085206360691576942>')
+        ]
+        super().__init__(placeholder='Choose the variants you want to see...', min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+
+        name = self.values[0]
+        data = self.data
+        new_data = []
+
+        if name == 'All':
+            new_data = data
+        else:
+            for variant in self.data:
+                if variant['name'] == name:
+                    new_data.append(variant)
+
+        embed = interaction.message.embeds[0]
+        graph(data=new_data, xmin=self.xmin)
+        file = [discord.File('utils/media/image.png', filename="image.png")]
+        embed.set_image(url="attachment://image.png")
+        await interaction.response.edit_message(attachments=file, embed=embed)
+
+
+class RHView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+
+        # Adds the dropdown to our view object.
 
 class Users(commands.Cog):
     def __init__(self, bot):
@@ -452,24 +586,31 @@ class Users(commands.Cog):
 
     @commands.hybrid_command(aliases=['rh'])
     async def rating_history(self, ctx, username: str, lim = '3m'):
+        
+        ## CREATING THE GRAPH
 
-        # Getting the graph range
+        # Getting the date range of the graph 
 
         limits = {
-            '1m':30,
-            '3m':3*30,
-            '6m':6*30,
-            '1y':12*30,
+            '1w':{'days': 7, 'label': '1 week'},
+            '1m':{'days': 30, 'label': '1 month'},
+            '3m':{'days': 3*30, 'label': '3 months'},
+            '6m':{'days': 6*30, 'label': '6 months'},
+            '1y':{'days': 12*30, 'label': '1 year'},
+            '2y':{'days': 24*30, 'label': '2 years'}
         }
 
         try:
-            days = limits[lim]
+            days = limits[lim]['days']
             xmin = (datetime.datetime.today() - datetime.timedelta(days=days))
+            desc_start = f"Rating history in the past __{limits[lim]['label']}__."
 
         except KeyError:
             if lim.lower() == 'all':
+                desc_start = f"__All time__ rating history."
                 xmin = None
             elif lim.lower() == 'ytd':
+                desc_start = f"Rating history __since the start of this year__."
                 xmin = datetime.datetime(year=datetime.datetime.today().year,month=1,day=1)
             else:
                 embed = constants.LimitErrorEmbed
@@ -477,95 +618,55 @@ class Users(commands.Cog):
                 return
 
 
-        # Retrieving the data from Lichess
-        r = requests.get(url=f"https://lichess.org/api/user/{username}/rating-history")
-        data = r.content
-        user_data = json.loads(r.text)
+        ## REQUESTING DATA FROM LICHESS
+        rh_r = requests.get(url=f"https://lichess.org/api/user/{username}/rating-history")
+        data = rh_r.content
+        rh_data = json.loads(rh_r.text)
+
+        upd_r = requests.get(url=constants.user_public_data+username)
+        data = upd_r.content
+        upd_data = json.loads(upd_r.text)
         
+
         # Just writing it to a file for testing purposes
-        
         with open('data.json', 'wb') as f:
             f.write(data)
-        points = user_data[0]['points']
 
-        # Arranging the data 
+        view = RHView()
+        selectmenu = RHDropdown(rh_data, xmin)
 
-        dates = []
-        ratings = []
+        for variant in rh_data:
+            name = variant['name']
+            selectmenu.add_option(label=name, value=name, emoji=constants.graph_variants[name]['emoji'])
 
-        for entry in points:
-            date = datetime.datetime(year=entry[0], month=entry[1]+1, day=entry[2])
-            dates.append(date)
+        graph(rh_data, xmin)
 
-        ratings = [entry[3] for entry in points]
-
+        # Get the variants
         
-
-        # Make lines go straight when there is not data
-
-        for date in dates:
-            index = dates.index(date) 
-            day_before = date - datetime.timedelta(days=1)
-            if day_before not in dates and index !=0:
-                dates.insert(index, day_before)
-                ratings.insert(index, ratings[index-1])
-
-        # Creating the graph and costumizing it
-
-        fig = plt.figure()
-        ax = fig.add_subplot()
-
-        grey_color = '#646873'
-
-        fig.set_facecolor('#2f3136')
-        ax.set_facecolor('#2f3136')
-        ax.spines['bottom'].set_color(grey_color)
-        ax.spines['right'].set_color(grey_color)
-        ax.tick_params(axis='x', colors=grey_color)
-        ax.tick_params(axis='y', colors=grey_color,direction='out',pad=-1)
-        ax.yaxis.tick_right()
-        ax.spines[['left','top','right']].set_visible(False)
-        ax.grid(color=grey_color,axis='y')
-        fig.set_figwidth(10)
-
-        formatter = mdates.AutoDateFormatter(mdates.AutoDateLocator())
-        formatter.scaled[365] = "%h, %y"
-        formatter.scaled[30] = "%d, %h, %Y"
-        formatter.scaled[1] = "%d %h, %y"
-
-        ax.xaxis.set_major_formatter(formatter)
-        ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-        
-        # Find ymax and ymin for the graph
-
-        plt.plot(dates, ratings)
-
-        if xmin != None:
-                
-            for i in range(len(dates)):
-                if dates[i] >= xmin:
-                    xmin_i = i-1 if i!= 0 else i
-                    break
-
-            plt.xlim(xmin, dates[len(dates)-1])
-            
-        else:
-            ymin, ymax = ax.get_ylim()
-            plt.ylim(ymin-100,ymax+100)
-
-        ax.set_yticklabels(ax.get_yticklabels(), ha="right", va="bottom")
-
         plt.savefig('utils/media/image.png',bbox_inches='tight')
         file = discord.File('utils/media/image.png', filename="image.png")
+
 
         ## Creating the embed
 
         embed = discord.Embed(
+            title=f"{upd_data['title'] if 'title' in upd_data else ''} {upd_data['username']}",
             color=constants.white_color,
-            timestamp=datetime.datetime.utcnow()
+            description=f'{desc_start}\n\nChange the time range by specifying it in the command like this:\n`=rh username [1w, 1m, 3m, 6m, 1y, 2y, ytd or all]`\n',
+            timestamp=datetime.datetime.utcnow(),
+            url=upd_data['url']
         )
         embed.set_image(url="attachment://image.png")
-        await ctx.reply(file=file, embed=embed)
+        embed.set_footer(text=f"Requested by {ctx.author.name}#{ctx.author.discriminator}", icon_url=ctx.author.avatar.url)
+
+        if 'patron' in upd_data:
+            if upd_data['patron']:
+
+                embed.title = constants.lichess_crown + " " + embed.title
+
+
+        view.add_item(selectmenu)
+        await ctx.reply(file=file, view=view, embed=embed)
 
 
 async def setup(bot):
