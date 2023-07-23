@@ -37,11 +37,16 @@ invite_url = "https://discord.com/api/oauth2/authorize?client_id=107652145882780
 # Emojis
 
 lichess_crown = "<:crown_lichess:1079129114168004678>"
+lichess_puzzles = "<:puzzles:1125119940735815811>"
 
 # Request URLs
 
 user_public_data = "https://lichess.org/api/user/"
+daily_puzzle_data = "https://lichess.org/api/puzzle/daily"
 
+# Images
+
+puzzles_image = "/home/spl1ce/Projects/Github/LichessBot/utils/media/puzzles.png"
 
 # Embeds
 
@@ -50,7 +55,7 @@ InfoEmbed = discord.Embed(title = "Info", description = """
         Hey, I'm the LichessBot.
         My goal is to be Lichess but in discord.
 
-        Note that I'm still in development and my dev doesn't know what he is doing...
+        Note that I'm still in development and my dev doesn't really know what he is doing...
         """, color = white_color, timestamp=datetime.utcnow())
 InfoEmbed.set_thumbnail(url=icon_url)
 InfoEmbed.set_author(name="LichessBot", icon_url=icon_url)

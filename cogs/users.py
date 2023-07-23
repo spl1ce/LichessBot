@@ -41,7 +41,7 @@ def graph(data, xmin):
     formatter.scaled[1] = "%d %h, %y"
 
     ax.xaxis.set_major_formatter(formatter)
-    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
 
     for variant in data:
         
@@ -155,7 +155,7 @@ class Users(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command()
+    @commands.hybrid_command(aliases = ['ui'])
     async def userinfo(self, ctx, *, username: str):
         r = requests.get(url=constants.user_public_data+username)
         user_data = json.loads(r.text)
@@ -621,6 +621,7 @@ class Users(commands.Cog):
         ## REQUESTING DATA FROM LICHESS
         rh_r = requests.get(url=f"https://lichess.org/api/user/{username}/rating-history")
         data = rh_r.content
+        print(data)
         rh_data = json.loads(rh_r.text)
 
         upd_r = requests.get(url=constants.user_public_data+username)
