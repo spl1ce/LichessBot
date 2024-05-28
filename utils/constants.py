@@ -41,10 +41,8 @@ lichess_puzzles = "<:puzzles:1125119940735815811>"
 
 # Request URLs
 
-user_public_data = "https://lichess.org/api/user/"
-daily_puzzle_data = "https://lichess.org/api/puzzle/daily"
-
-# Images
+userpublicdata_url = "https://lichess.org/api/user/"
+dailypuzzle_url = "https://lichess.org/api/puzzle/daily"
 
 puzzles_image = "/home/spl1ce/Projects/Github/LichessBot/utils/media/puzzles.png"
 

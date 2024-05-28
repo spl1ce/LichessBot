@@ -15,7 +15,6 @@ import chess
 from chess import pgn
 from chess import svg
 from svglib.svglib import svg2rlg
-from reportlab.graphics import renderPM
 
 
 class Guess(discord.ui.Modal, title='Guess'):
@@ -110,14 +109,14 @@ class Play(commands.Cog):
 
         svg2png(bytestring=boardsvg, write_to='board.png')
 
-        outputfile = open('/home/spl1ce/Projects/Github/LichessBot/utils/media/board.svg', "w")
+        outputfile = open('D:/Users/Utilizador/Documents/GitHub/LichessBot/utils/media/board.svg', "w")
         outputfile.write(boardsvg)
         outputfile.close()
 
-        svg2png(url='/home/spl1ce/Projects/Github/LichessBot/utils/media/board.svg', write_to='/home/spl1ce/Projects/Github/LichessBot/utils/media/board.png')
+        svg2png(bytestring=boardsvg, write_to='D:/Users/Utilizador/Documents/GitHub/LichessBot/utils/media/board.png')
 
-        board_file = discord.File("/home/spl1ce/Projects/Github/LichessBot/utils/media/board.png", filename="board.png")
-        puzzles_file = discord.File("/home/spl1ce/Projects/Github/LichessBot/utils/media/puzzles.png", filename="puzzles.png")
+        board_file = discord.File("D:/Users/Utilizador/Documents/GitHub/LichessBot/utils/media/board.png", filename="board.png")
+        puzzles_file = discord.File("D:/Users/Utilizador/Documents/GitHub/LichessBot/utils/media/puzzles.png", filename="puzzles.png")
 
         description = f"""
         Puzzle: [#{puzzle_id}](https://lichess.org/training/{puzzle_id})
@@ -145,6 +144,7 @@ class Play(commands.Cog):
 # if correct, congrats now whats the next move?
 # if incorrect, oops you didn't get it right, try again!
 # at the end of the puzzle, congrats you got it right!
+
 
 async def setup(bot):
     await bot.add_cog(Play(bot))

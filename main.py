@@ -33,7 +33,7 @@ bot = Bot(command_prefix=data["prefix"], activity=discord.Activity(type = discor
 
 @bot.event
 async def on_ready():
-    bot.get_command("status").update(enabled=False)
+    bot.get_command("user status").update(enabled=False)
     print('Bot is ready.')
 
 @bot.event

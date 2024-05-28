@@ -3,10 +3,8 @@ from discord.ext import commands
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import numpy as np
-import pandas as pd
 
-import typing
+
 import flag
 import pycountry
 import requests
@@ -17,7 +15,6 @@ from utils import constants
 
 
 def graph(data, xmin):
-
 
     fig = plt.figure()
     ax = fig.add_subplot()
@@ -155,9 +152,14 @@ class Users(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(aliases = ['ui'])
-    async def userinfo(self, ctx, *, username: str):
-        r = requests.get(url=constants.user_public_data+username)
+    @commands.hybrid_group()
+    async def user(self, ctx):
+        pass
+
+
+    @user.command(description="View the profile information of a Lichess user")
+    async def info(self, ctx, *, username: str):
+        r = requests.get(url=constants.userpublicdata_url+username)
         user_data = json.loads(r.text)
 
         print(user_data)
@@ -530,7 +532,7 @@ class Users(commands.Cog):
 
         await ctx.reply(embed=embed)
 
-    @commands.hybrid_command()
+    @user.command(description="View the status of a Lichess user.")
     async def status(self, ctx, *, usernames: str):
         
         r = requests.get(url="https://lichess.org/api/users/status", params={'ids': usernames.replace(" ",",")})
@@ -584,8 +586,8 @@ class Users(commands.Cog):
         await ctx.reply(embed=embed)
 
 
-    @commands.hybrid_command(aliases=['rh'])
-    async def rating_history(self, ctx, username: str, lim = '3m'):
+    @user.command(aliases=['rh'], description="View the rating history of a Lichess user.")
+    async def ratinghistory(self, ctx, username: str, lim = '3m'):
         
         ## CREATING THE GRAPH
 
@@ -624,7 +626,7 @@ class Users(commands.Cog):
         print(data)
         rh_data = json.loads(rh_r.text)
 
-        upd_r = requests.get(url=constants.user_public_data+username)
+        upd_r = requests.get(url=constants.userpublicdata_url+username)
         data = upd_r.content
         upd_data = json.loads(upd_r.text)
         
