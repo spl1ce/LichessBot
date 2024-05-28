@@ -18,6 +18,10 @@ from svglib.svglib import svg2rlg
 
 
 class Guess(discord.ui.Modal, title='Guess'):
+    def __init__(self, solution):
+        super().__init__()
+        self.count = 0
+        self.solution = solution
     # Our modal classes MUST subclass `discord.ui.Modal`,
     # but the title can be whatever you want.
 
@@ -32,7 +36,21 @@ class Guess(discord.ui.Modal, title='Guess'):
 
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.send_message(f'Thanks for your feedback, {self.name.value}!', ephemeral=True)
+        if self.name.value == self.solution[0]:
+            print("ok1")
+            self.count += 2
+            board_file = discord.File("/home/spl1ce/Projects/Github/LichessBot/utils/media/board.png", filename="board.png")
+            puzzles_file = discord.File("/home/spl1ce/Projects/Github/LichessBot/utils/media/puzzles.png", filename="puzzles.png")
+            print("ok2")
+
+            embed = discord.Embed(title="Daily Puzzle", description=f"""
+            **Best Move!**
+            Keep going...
+            
+            *Type the next move in Algebraic Chess Notation. *`/notation`""")
+            embed.set_image(url="attachment://board.png")
+            embed.set_thumbnail(url="attachment://puzzles.png")
+            await interaction.response.edit_message(attachments=[board_file, puzzles_file], embed=embed, view=Solving(solution=self.solution))
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
@@ -43,18 +61,21 @@ class Guess(discord.ui.Modal, title='Guess'):
 
 
 class Solving(discord.ui.View):
-    def __init__(self):
+    def __init__(self, solution):
         super().__init__()
+        self.solution = solution
 
     @discord.ui.button(label='Guess', style=discord.ButtonStyle.blurple)
     async def guess(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(Guess())
+        await interaction.response.send_modal(Guess(solution=self.solution))
 
 
 class SolveIt(discord.ui.View):
-    def __init__(self):
+    def __init__(self, board, solution):
         super().__init__()
         self.value = None
+        self.board = board
+        self.solution = solution
 
     # When the confirm button is pressed, set the inner value to `True` and
     # stop the View from listening to more input.
@@ -62,13 +83,21 @@ class SolveIt(discord.ui.View):
 
     @discord.ui.button(label='Solve it', style=discord.ButtonStyle.green)
     async def solveit(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(title="Daily Puzzle", description="""
-        If you are ready to guess click 'Guess' and type the move in Algebraic Chess Notation.
+        board_file = discord.File("/home/spl1ce/Projects/Github/LichessBot/utils/media/board.png", filename="board.png")
+        puzzles_file = discord.File("/home/spl1ce/Projects/Github/LichessBot/utils/media/puzzles.png", filename="puzzles.png")
+
+        turn = "Black"
+        if self.board.turn is True:
+            turn = "White"
+
+        embed = discord.Embed(title="Daily Puzzle", description=f"""
+        **Your turn**
+        Find the best move for {turn}
         
-        In case you don't know Algebraic Chess Notation you can learn it with the chess_notation command.""")
+        *Type the move in Algebraic Chess Notation. *`/notation`""")
         embed.set_image(url="attachment://board.png")
         embed.set_thumbnail(url="attachment://puzzles.png")
-        await interaction.message.edit(embed=embed, view=Solving())
+        await interaction.response.send_message(files=[board_file, puzzles_file], embed=embed, view=Solving(solution=self.solution), ephemeral=True)
         
         self.value = True
         self.stop()
@@ -131,8 +160,7 @@ class Play(commands.Cog):
         embed = discord.Embed(title=f"Daily Puzzle", description=description, colour=constants.white_color)
         embed.set_image(url="attachment://board.png")
         embed.set_thumbnail(url="attachment://puzzles.png")
-
-        view = SolveIt()
+        view = SolveIt(board=board, solution=solution)
 
         await ctx.reply(files=[board_file, puzzles_file], embed=embed, view=view)
 
@@ -148,3 +176,11 @@ class Play(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(Play(bot))
+
+
+
+# Make board flip if black is to move
+# handle wrong answers
+# make the solution continuation
+# congratulating message
+# make notation command
