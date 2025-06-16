@@ -9,7 +9,7 @@ class Info(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def info(self, ctx):
         owner = await self.bot.fetch_user(constants.owner_id)
 
@@ -18,7 +18,7 @@ class Info(commands.Cog):
         embed.add_field(name="Developed by", value=f"{owner.mention} ({owner.name}#{owner.discriminator})")
         await ctx.reply(embed=embed)
 
-    @commands.command()
+    @commands.hybrid_command()
     async def invite(self, ctx):
         embed = constants.InviteEmbed
 
